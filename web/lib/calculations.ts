@@ -1,6 +1,6 @@
 export type Stock = {
   id: number;
-  symbol: string;
+  name: string;
   quantity: number;
   buyPrice: number;
   createdAt: string | Date;

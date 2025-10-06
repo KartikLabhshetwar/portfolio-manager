@@ -3,6 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { calculatePortfolioMetrics, type Stock } from "@/lib/calculations";
 import { loadSharePreferences, saveSharePreferences } from "@/lib/config";
+import {
+  loadCalculationPreferences,
+  saveCalculationPreferences,
+  loadCalculationSnapshot,
+  saveCalculationSnapshot,
+} from "@/lib/calc-config";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -10,6 +16,8 @@ export default function Dashboard() {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [form, setForm] = useState({ name: "", quantity: "", buyPrice: "" });
   const [sharePrefs, setSharePrefs] = useState(loadSharePreferences());
+  const [calcPrefs, setCalcPrefs] = useState(loadCalculationPreferences());
+  const [snapshot, setSnapshot] = useState(loadCalculationSnapshot());
 
   async function fetchStocks() {
     const res = await fetch("/api/stocks", { cache: "no-store" });
@@ -56,6 +64,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     setSharePrefs(loadSharePreferences());
+    setCalcPrefs(loadCalculationPreferences());
+    setSnapshot(loadCalculationSnapshot());
     fetchStocks();
   }, []);
 
@@ -91,9 +101,25 @@ export default function Dashboard() {
 
       <div className="mb-4">
         <h2 className="font-semibold">Portfolio Summary</h2>
-        <p>Total Value: ₹{metrics.totalValue.toFixed(2)}</p>
-        <p>Average Buy Price: ₹{metrics.avgBuyPrice.toFixed(2)}</p>
+        <p>
+          Total Value: {calcPrefs.currencySymbol}
+          {metrics.totalValue.toFixed(2)}
+        </p>
+        <p>
+          Average Buy Price: {calcPrefs.currencySymbol}
+          {metrics.avgBuyPrice.toFixed(2)}
+        </p>
         <p>Total Quantity: {metrics.totalQuantity}</p>
+        {snapshot && (
+          <div className="mt-2 text-sm text-gray-600">
+            <div>Saved Snapshot ({new Date(snapshot.savedAt).toLocaleString()}):</div>
+            <div>
+              Total: {calcPrefs.currencySymbol}
+              {snapshot.totalValue.toFixed(2)} | Avg: {calcPrefs.currencySymbol}
+              {snapshot.avgBuyPrice.toFixed(2)} | Qty: {snapshot.totalQuantity}
+            </div>
+          </div>
+        )}
       </div>
 
       <table className="w-full border">
@@ -121,6 +147,33 @@ export default function Dashboard() {
 
       <div className="flex gap-2 mt-4 flex-wrap items-end">
         <Button onClick={generateReport} variant="default">Generate Report</Button>
+        <div className="flex items-center gap-2">
+          <Input
+            placeholder="Currency (e.g. ₹ $ €)"
+            className="w-40"
+            value={calcPrefs.currencySymbol}
+            onChange={(e) => {
+              const next = { ...calcPrefs, currencySymbol: e.target.value };
+              setCalcPrefs(next);
+              saveCalculationPreferences(next);
+            }}
+          />
+          <Button
+            variant="outline"
+            onClick={() => {
+              const snap = {
+                totalValue: metrics.totalValue,
+                avgBuyPrice: metrics.avgBuyPrice,
+                totalQuantity: metrics.totalQuantity,
+                savedAt: new Date().toISOString(),
+              };
+              saveCalculationSnapshot(snap);
+              setSnapshot(snap);
+            }}
+          >
+            Save Snapshot
+          </Button>
+        </div>
 
         <div className="flex items-center gap-2">
           <Input
