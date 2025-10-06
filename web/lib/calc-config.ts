@@ -14,13 +14,13 @@ const PREFS_KEY = "portfolio_calc_prefs";
 const SNAPSHOT_KEY = "portfolio_calc_snapshot";
 
 export function loadCalculationPreferences(): CalculationPreferences {
-  if (typeof window === "undefined") return { currencySymbol: "₹", expectedAnnualReturnPct: 8 };
+  if (typeof window === "undefined") return { currencySymbol: "$", expectedAnnualReturnPct: 8 };
   try {
     const raw = window.localStorage.getItem(PREFS_KEY);
-    if (!raw) return { currencySymbol: "₹", expectedAnnualReturnPct: 8 };
+    if (!raw) return { currencySymbol: "$", expectedAnnualReturnPct: 8 };
     const parsed = JSON.parse(raw) as Partial<CalculationPreferences>;
     return {
-      currencySymbol: parsed.currencySymbol ?? "₹",
+      currencySymbol: parsed.currencySymbol ?? "$",
       expectedAnnualReturnPct: parsed.expectedAnnualReturnPct ?? 8,
     };
   } catch {
