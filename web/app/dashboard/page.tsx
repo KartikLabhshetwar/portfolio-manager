@@ -24,6 +24,8 @@ export default function Dashboard() {
   const [symbol, setSymbol] = useState("");
   const [tradeDate, setTradeDate] = useState("");
   const [maxViews, setMaxViews] = useState<string>("");
+  const [oneTimeView, setOneTimeView] = useState(false);
+  const [isFetchingPrice, setIsFetchingPrice] = useState(false);
 
   async function fetchStocks(pid = selectedPortfolioId) {
     if (!pid) {
@@ -79,7 +81,11 @@ export default function Dashboard() {
     const res = await fetch("/api/share", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...sharePrefs, portfolioId: selectedPortfolioId, maxViews: maxViews || null }),
+      body: JSON.stringify({
+        ...sharePrefs,
+        portfolioId: selectedPortfolioId,
+        maxViews: oneTimeView ? 1 : (maxViews ? Number(maxViews) : null),
+      }),
     });
     const data = await res.json();
     if (data.link) window.open(data.link, "_blank");
@@ -95,6 +101,17 @@ export default function Dashboard() {
   useEffect(() => {
     fetchStocks(selectedPortfolioId);
   }, [selectedPortfolioId]);
+
+  useEffect(() => {
+    async function maybeFetch() {
+      if (!symbol || !tradeDate) return;
+      const res = await fetch(`/api/price?symbol=${encodeURIComponent(symbol)}&date=${encodeURIComponent(tradeDate)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data?.close != null) setForm((f) => ({ ...f, buyPrice: String(data.close) }));
+    }
+    maybeFetch();
+  }, [symbol, tradeDate]);
 
   const metrics = useMemo(() => calculatePortfolioMetrics(stocks), [stocks]);
 
@@ -153,15 +170,21 @@ export default function Dashboard() {
         />
         <Button
           variant="outline"
+          disabled={isFetchingPrice}
           onClick={async () => {
             if (!symbol || !tradeDate) return;
-            const res = await fetch(`/api/price?symbol=${encodeURIComponent(symbol)}&date=${encodeURIComponent(tradeDate)}`);
-            if (!res.ok) return;
-            const data = await res.json();
-            if (data?.close != null) setForm((f) => ({ ...f, buyPrice: String(data.close) }));
+            try {
+              setIsFetchingPrice(true);
+              const res = await fetch(`/api/price?symbol=${encodeURIComponent(symbol)}&date=${encodeURIComponent(tradeDate)}`);
+              if (!res.ok) return;
+              const data = await res.json();
+              if (data?.close != null) setForm((f) => ({ ...f, buyPrice: String(data.close) }));
+            } finally {
+              setIsFetchingPrice(false);
+            }
           }}
         >
-          Fetch Price
+          {isFetchingPrice ? "Fetching..." : "Fetch Price"}
         </Button>
         <Input
           placeholder="Stock Name"
@@ -182,6 +205,18 @@ export default function Dashboard() {
           className="w-36"
           value={form.buyPrice}
           onChange={(e) => setForm({ ...form, buyPrice: e.target.value })}
+        />
+        <Input
+          placeholder="Total Cost"
+          type="number"
+          className="w-40"
+          value={(() => {
+            const q = parseFloat(form.quantity || "0");
+            const p = parseFloat(form.buyPrice || "0");
+            const total = Number.isFinite(q) && Number.isFinite(p) ? q * p : 0;
+            return total ? String(total.toFixed(2)) : "";
+          })()}
+          readOnly
         />
         <Button onClick={addStock}>Add</Button>
       </div>
@@ -245,6 +280,18 @@ export default function Dashboard() {
               saveCalculationPreferences(next);
             }}
           />
+          <Input
+            placeholder="Expected annual return %"
+            type="number"
+            className="w-56"
+            value={String(calcPrefs.expectedAnnualReturnPct ?? 8)}
+            onChange={(e) => {
+              const val = Number(e.target.value || 0);
+              const next = { ...calcPrefs, expectedAnnualReturnPct: val };
+              setCalcPrefs(next);
+              saveCalculationPreferences(next);
+            }}
+          />
           <Button
             variant="outline"
             onClick={() => {
@@ -279,6 +326,14 @@ export default function Dashboard() {
               })
             }
           />
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={oneTimeView}
+              onChange={(e) => setOneTimeView(e.target.checked)}
+            />
+            One-time view
+          </label>
           <Input
             placeholder="Max views (optional)"
             type="number"
