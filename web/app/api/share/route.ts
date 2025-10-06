@@ -9,7 +9,11 @@ export async function POST(req: Request) {
     data: { reportId: 1, password: password || null, expiresAt, token },
   });
 
-  return NextResponse.json({ link: `/view/${link.token}` });
+  // Build absolute URL for sharing (works locally and on Vercel)
+  const proto = req.headers.get("x-forwarded-proto") || "http";
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "localhost:3000";
+  const origin = `${proto}://${host}`;
+  return NextResponse.json({ link: `${origin}/view/${link.token}` });
 }
 
 export async function GET(req: Request) {
