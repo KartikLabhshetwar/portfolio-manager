@@ -18,6 +18,9 @@ export default function ViewPage() {
     if (data.valid) {
       setValid(true);
       setNeedsPassword(false);
+      const q = data.portfolioId ? `?portfolioId=${data.portfolioId}` : "";
+      const iframe = document.querySelector("iframe#report-frame") as HTMLIFrameElement | null;
+      if (iframe) iframe.src = `/api/report${q}`;
     } else if (res.status === 401) {
       setNeedsPassword(true);
       setValid(false);
@@ -46,7 +49,7 @@ export default function ViewPage() {
 
   if (!valid) return <div className="p-6">❌ Invalid or expired link</div>;
 
-  return <iframe src="/api/report" className="w-full h-screen" />;
+  return <iframe id="report-frame" src="/api/report" className="w-full h-screen" />;
 }
 
 

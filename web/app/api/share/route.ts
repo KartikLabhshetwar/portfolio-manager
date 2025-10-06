@@ -2,11 +2,19 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
-  const { password, expireInMinutes } = await req.json();
+  const { password, expireInMinutes, maxViews, portfolioId } = await req.json();
   const expiresAt = expireInMinutes ? new Date(Date.now() + expireInMinutes * 60 * 1000) : null;
   const token = crypto.randomUUID().replace(/-/g, "");
   const link = await prisma.sharedLink.create({
-    data: { reportId: 1, password: password || null, expiresAt, token },
+    data: {
+      reportId: 1,
+      password: password || null,
+      expiresAt,
+      token,
+      // The following fields require a migration; cast to any to satisfy TS until schema generates types
+      ...(maxViews != null ? ({ maxViews } as any) : {}),
+      ...(portfolioId != null ? ({ portfolioId } as any) : {}),
+    } as any,
   });
 
   // Build absolute URL for sharing (works locally and on Vercel)
@@ -29,8 +37,10 @@ export async function GET(req: Request) {
 
   if (link.password && link.password !== password)
     return NextResponse.json({ error: "Password required or incorrect" }, { status: 401 });
-
-  return NextResponse.json({ valid: true });
+  if ((link as any).maxViews != null && (link as any).views >= (link as any).maxViews)
+    return NextResponse.json({ error: "Link view limit reached" }, { status: 403 });
+  await prisma.sharedLink.update({ where: { id: link.id }, data: { views: { increment: 1 } } as any });
+  return NextResponse.json({ valid: true, portfolioId: (link as any).portfolioId ?? null });
 }
 
 

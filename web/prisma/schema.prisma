@@ -19,6 +19,8 @@ model Stock {
   quantity  Float
   buyPrice  Float
   createdAt DateTime @default(now())
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id])
+  portfolioId Int
 }
 
 model SharedLink {
@@ -27,5 +29,17 @@ model SharedLink {
   reportId   Int
   password   String?
   expiresAt  DateTime?
+  maxViews   Int?
+  views      Int      @default(0)
+  portfolio   Portfolio? @relation("PortfolioToSharedLink", fields: [portfolioId], references: [id])
+  portfolioId Int?
   createdAt  DateTime @default(now())
+}
+
+model Portfolio {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  stocks    Stock[]
+  sharedLinks SharedLink[] @relation("PortfolioToSharedLink")
 }

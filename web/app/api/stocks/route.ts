@@ -1,13 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-export async function GET() {
-  const stocks = await prisma.stock.findMany();
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const portfolioId = url.searchParams.get("portfolioId");
+  const where = portfolioId ? ({ portfolioId: Number(portfolioId) } as any) : undefined;
+  const stocks = await prisma.stock.findMany({ where });
   return NextResponse.json(stocks);
 }
 
 export async function POST(req: Request) {
   const data = await req.json();
+  if (!data?.portfolioId) {
+    return NextResponse.json({ error: "portfolioId required" }, { status: 400 });
+  }
   const stock = await prisma.stock.create({ data });
   return NextResponse.json(stock);
 }
